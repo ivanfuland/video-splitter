@@ -8,7 +8,16 @@ import math
 import os
 import shlex
 import subprocess
+import sys
+import locale
 from optparse import OptionParser
+from pathlib import Path
+
+# Set the locale to handle UTF-8
+try:
+    locale.setlocale(locale.LC_ALL, '')
+except:
+    pass
 
 
 def split_by_manifest(filename, manifest, output_dir=None, vcodec="copy", acodec="copy",
@@ -58,19 +67,25 @@ def split_by_manifest(filename, manifest, output_dir=None, vcodec="copy", acodec
             print("Format not supported. File must be a csv or json file")
             raise SystemExit
 
-        # 如果没有指定输出目录，则创建以输入文件名（不带扩展名）命名的文件夹
+        # 如果没有指定输出目录，则创建以输入文件名（不带扩展名）命名的文件夹，与输入文件在同一目录
         if not output_dir and filename:
-            # 获取输入文件的基本名称（不带路径和扩展名）
-            input_basename = os.path.basename(filename)
-            input_name_without_ext = os.path.splitext(input_basename)[0]
-            output_dir = input_name_without_ext
+            # 使用Path对象处理路径
+            input_path = Path(filename)
+            # 获取输入文件的目录
+            input_dir = input_path.parent
+            # 获取输入文件的基本名称（不带扩展名）
+            input_name_without_ext = input_path.stem
+            # 在输入文件的目录中创建以"Clip-"加文件名命名的文件夹
+            output_dir = str(input_dir / f"Clip-{input_name_without_ext}")
             print(f"Creating output directory: {output_dir}")
 
         # Ensure the output directory exists
         if output_dir and not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        split_cmd = ["ffmpeg", "-i", filename, "-vcodec", vcodec,
+        # Use Path object for better handling of Unicode paths
+        input_path = Path(filename).absolute()
+        split_cmd = ["ffmpeg", "-i", str(input_path), "-vcodec", vcodec,
                      "-acodec", acodec, "-y"] + shlex.split(extra)
         try:
             fileext = filename.split(".")[-1]
@@ -88,6 +103,10 @@ def split_by_manifest(filename, manifest, output_dir=None, vcodec="copy", acodec
                 if fileext in filebase:
                     filebase = ".".join(filebase.split(".")[:-1])
 
+                # Ensure the output directory exists
+                if output_dir and not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                
                 output_path = os.path.join(output_dir, filebase + "." + fileext) if output_dir else filebase + "." + fileext
 
                 split_args += ["-ss", str(split_start), "-t",
@@ -136,19 +155,25 @@ def split_by_seconds(filename, split_length, output_dir=None, vcodec="copy", aco
         print("Video length is less then the target split length.")
         raise SystemExit
 
-    # 如果没有指定输出目录，则创建以输入文件名（不带扩展名）命名的文件夹
+    # 如果没有指定输出目录，则创建以输入文件名（不带扩展名）命名的文件夹，与输入文件在同一目录
     if not output_dir:
-        # 获取输入文件的基本名称（不带路径和扩展名）
-        input_basename = os.path.basename(filename)
-        input_name_without_ext = os.path.splitext(input_basename)[0]
-        output_dir = input_name_without_ext
+        # 使用Path对象处理路径
+        input_path = Path(filename)
+        # 获取输入文件的目录
+        input_dir = input_path.parent
+        # 获取输入文件的基本名称（不带扩展名）
+        input_name_without_ext = input_path.stem
+        # 在输入文件的目录中创建以"Clip-"加文件名命名的文件夹
+        output_dir = str(input_dir / f"Clip-{input_name_without_ext}")
         print(f"Creating output directory: {output_dir}")
 
     # Ensure the output directory exists
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    split_cmd = ["ffmpeg", "-i", filename, "-vcodec", vcodec, "-acodec", acodec] + shlex.split(extra)
+    # Use Path object for better handling of Unicode paths
+    input_path = Path(filename).absolute()
+    split_cmd = ["ffmpeg", "-i", str(input_path), "-vcodec", vcodec, "-acodec", acodec] + shlex.split(extra)
     try:
         # 获取输入文件的基本名称（不带路径）
         input_basename = os.path.basename(filename)

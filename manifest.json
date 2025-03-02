@@ -1,7 +1,13 @@
 {
-  "input_file": "E:/CondaList/video-splitter/input.mp4",
+  "input_file": "F:/Ã½Ìå¿Õ¼ä/ADN-641+.mp4",
   "output_clips": [
-    { "start_time": 0, "length": 34 },
-    { "start_time": 35, "length": 22 }
+    {
+      "start_time": 613,
+      "length": 2004
+    },
+    {
+      "start_time": 1200,
+      "length": 10
+    }
   ]
 }

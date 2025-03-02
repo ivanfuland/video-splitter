@@ -26,7 +26,7 @@ python ffmpeg-split.py -m manifest.json
 
 The script will:
 - Use the input_file path specified in the manifest
-- Create a folder named after the input video file (without extension)
+- Create a folder named "Clip-[filename]" (without extension) in the same directory as the input file
 - Create output files named "clip-0.mp4", "clip-1.mp4", etc. based on the index in the output_clips array
 - Each clip will start at the specified start_time and have the specified length
 - All clip files will be placed in the created folder
@@ -68,6 +68,13 @@ The script will:
 - Check if they have compatible encoding
 - Merge them into a single file named "output.mp4" in the same directory as the input clips
 - Use copy mode to avoid re-encoding the videos
+
+## Handling Non-ASCII Characters
+
+Both scripts have been improved to handle paths with non-ASCII characters (such as Chinese, Japanese, etc.) by:
+- Setting the locale to handle UTF-8 encoding
+- Using the `pathlib` module for better Unicode path handling
+- Using absolute paths to avoid encoding issues
 
 ## Requirements
 
