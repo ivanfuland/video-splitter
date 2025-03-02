@@ -29,19 +29,46 @@ def split_by_manifest(filename, manifest, output_dir=None, vcodec="copy", acodec
         print("File does not exist: %s" % manifest)
         raise SystemExit
 
-    # Ensure the output directory exists
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
     with open(manifest) as manifest_file:
         manifest_type = manifest.split(".")[-1]
         if manifest_type == "json":
-            config = json.load(manifest_file)
+            config_data = json.load(manifest_file)
+            
+            # 处理新格式的manifest.json
+            if isinstance(config_data, dict) and "input_file" in config_data and "output_clips" in config_data:
+                if not filename:  # 如果命令行未提供文件名，则使用配置中的
+                    filename = config_data["input_file"]
+                config = []
+                for i, clip in enumerate(config_data["output_clips"]):
+                    # 生成默认文件名 clip-{索引}
+                    fileext = filename.split(".")[-1]
+                    rename_to = f"clip-{i}.{fileext}"
+                    # 创建兼容现有代码的配置项
+                    config_item = {
+                        "start_time": clip["start_time"],
+                        "length": clip["length"],
+                        "rename_to": rename_to
+                    }
+                    config.append(config_item)
+            else:
+                config = config_data
         elif manifest_type == "csv":
             config = csv.DictReader(manifest_file)
         else:
             print("Format not supported. File must be a csv or json file")
             raise SystemExit
+
+        # 如果没有指定输出目录，则创建以输入文件名（不带扩展名）命名的文件夹
+        if not output_dir and filename:
+            # 获取输入文件的基本名称（不带路径和扩展名）
+            input_basename = os.path.basename(filename)
+            input_name_without_ext = os.path.splitext(input_basename)[0]
+            output_dir = input_name_without_ext
+            print(f"Creating output directory: {output_dir}")
+
+        # Ensure the output directory exists
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
         split_cmd = ["ffmpeg", "-i", filename, "-vcodec", vcodec,
                      "-acodec", acodec, "-y"] + shlex.split(extra)
@@ -74,6 +101,7 @@ def split_by_manifest(filename, manifest, output_dir=None, vcodec="copy", acodec
                 if manifest_type == "json":
                     print("The format of each json array should be:")
                     print("{start_time: <int>, length: <int>, rename_to: <string>}")
+                    print("Or use new format with input_file and output_clips")
                 elif manifest_type == "csv":
                     print("start_time,length,rename_to should be the first line ")
                     print("in the csv file.")
@@ -108,14 +136,24 @@ def split_by_seconds(filename, split_length, output_dir=None, vcodec="copy", aco
         print("Video length is less then the target split length.")
         raise SystemExit
 
+    # 如果没有指定输出目录，则创建以输入文件名（不带扩展名）命名的文件夹
+    if not output_dir:
+        # 获取输入文件的基本名称（不带路径和扩展名）
+        input_basename = os.path.basename(filename)
+        input_name_without_ext = os.path.splitext(input_basename)[0]
+        output_dir = input_name_without_ext
+        print(f"Creating output directory: {output_dir}")
+
     # Ensure the output directory exists
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     split_cmd = ["ffmpeg", "-i", filename, "-vcodec", vcodec, "-acodec", acodec] + shlex.split(extra)
     try:
-        filebase = ".".join(filename.split(".")[:-1])
-        fileext = filename.split(".")[-1]
+        # 获取输入文件的基本名称（不带路径）
+        input_basename = os.path.basename(filename)
+        filebase = ".".join(input_basename.split(".")[:-1])
+        fileext = input_basename.split(".")[-1]
     except IndexError as e:
         raise IndexError("No . in filename. Error: " + str(e))
     for n in range(0, split_count):
@@ -215,11 +253,27 @@ def main():
         parser.print_help()
         raise SystemExit
 
-    if not options.filename:
-        bailout()
-
     if options.manifest:
+        # Check if manifest exists and might contain input_file
+        if os.path.exists(options.manifest):
+            manifest_type = options.manifest.split(".")[-1]
+            if manifest_type == "json":
+                try:
+                    with open(options.manifest) as manifest_file:
+                        config_data = json.load(manifest_file)
+                        # If manifest has input_file, we don't need -f/--file
+                        if isinstance(config_data, dict) and "input_file" in config_data:
+                            split_by_manifest(**options.__dict__)
+                            return
+                except (json.JSONDecodeError, IOError) as e:
+                    print(f"Error reading manifest: {e}")
+        
+        # If we get here, we still need the filename
+        if not options.filename:
+            bailout()
         split_by_manifest(**options.__dict__)
+    elif not options.filename:
+        bailout()
     else:
         video_length = None
         if not options.split_length:

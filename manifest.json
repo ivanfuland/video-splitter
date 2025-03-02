@@ -1,0 +1,7 @@
+{
+  "input_file": "E:/CondaList/video-splitter/input.mp4",
+  "output_clips": [
+    { "start_time": 0, "length": 34 },
+    { "start_time": 35, "length": 22 }
+  ]
+}
